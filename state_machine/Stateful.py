@@ -1,7 +1,7 @@
 from typing import Callable, Any, Tuple, List, NewType
 
 Condition = Callable[[Any], bool]
-Action = Callable[[Any], Any]
+Action = Callable[[Any], bool]
 
 from_state, to_state = int, int
 Transition = Tuple[from_state, to_state, Condition, Action]
