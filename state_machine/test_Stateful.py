@@ -17,8 +17,9 @@ conditions = [[lambda v: False] * len(TestStates)] * len(TestStates)
 
 class TestTransitions(TestCase):
     def test_init(self):
-        t1: Transition = (0, 1, lambda v: 'ev1' in v, lambda v: print(v))
-        t2, t3 = (1, 2, lambda: True, None), (2, 3, lambda: True, lambda: True)
+        t1: Transition = (0, 1, lambda v: 'ev1' in v, lambda v: v, lambda v: print('done', v))
+        t2, t3 = (1, 2, lambda: True, None, lambda: print('done')), \
+                 (2, 3, lambda: True, lambda: True, lambda: print('done'))
 
         ts = Transitions([t1, t2, t3])
         g = stateful_generator(0, ts)
