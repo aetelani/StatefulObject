@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from unittest import TestCase
 
-from state_machine.Stateful import Transition, Transitions, stateful_generator
+from state_machine.Stateful import Transition, Transitions, stateful_generator, Event
 
 
 class TestStates(Enum):
@@ -17,13 +17,14 @@ conditions = [[lambda v: False] * len(TestStates)] * len(TestStates)
 
 class TestTransitions(TestCase):
     def test_init(self):
-        t1: Transition = (0, 1, lambda v: v == 'ev1', lambda v: v + 'ok')
+        t1: Transition = (0, 1, lambda v: 'ev1' in v, lambda v: print(v))
         t2, t3 = (1, 2, lambda: True, None), (2, 3, lambda: True, lambda: True)
 
         ts = Transitions([t1, t2, t3])
         g = stateful_generator(0, ts)
         print(r := next(g))
-        print(r := g.send('ev1'))
+        ev: Event = ('ev1', ('arg1', 'arg2'))
+        print(r := g.send(ev))
 
         import numpy as np
         print(np.array(conditions))
