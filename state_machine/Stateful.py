@@ -1,3 +1,5 @@
+import asyncio
+from asyncio import AbstractEventLoop
 from typing import Callable, Any, Tuple, List, NewType, Optional
 
 Condition = Callable[[Any], bool]
@@ -12,15 +14,19 @@ Transitions = NewType('Transitions', List[Transition])
 
 
 def stateful_generator(initial: int, ts: Transitions):
+    loop: AbstractEventLoop = asyncio.get_event_loop()
+
     next_state = initial
-    (f, t, c, a, d) = zip(*ts)
+
+    (f, t, c, a, s) = zip(*ts)
 
     def test(tester: Callable):
         return tester(event)
 
     def run(action_index) -> bool:
-        result = a[action_index](event)
-        d[action_index](result)
+        task = loop.create_task(a[action_index](event))
+        task.add_done_callback(s[action_index])
+        loop.run_until_complete(task)
         return True
 
     while True:
