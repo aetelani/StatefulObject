@@ -1,5 +1,9 @@
 import asyncio
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, Semaphore
+from concurrent.futures._base import Executor, Future
+from concurrent.futures.thread import ThreadPoolExecutor
+from functools import partial
+from queue import Queue
 from typing import Callable, Any, Tuple, List, NewType, Optional
 
 Condition = Callable[[Any], bool]
@@ -13,20 +17,31 @@ Transition = Tuple[from_state, to_state, Condition, Action, ActionDone]
 Transitions = NewType('Transitions', List[Transition])
 
 
-def stateful_generator(initial: int, ts: Transitions):
-    loop: AbstractEventLoop = asyncio.get_event_loop()
+def stateful_generator(initial: int, ts: Transitions, executor: Executor = None, q: Queue = None):
+    #loop: AbstractEventLoop = asyncio.get_event_loop()
+    pool = executor or ThreadPoolExecutor(max_workers=3)
 
     next_state = initial
 
-    (f, t, c, a, s) = zip(*ts)
+    (f, t, c, a, d) = zip(*ts)
+
+    if q is None:
+        local_execution = True
+        q = Queue()
 
     def test(tester: Callable):
         return tester(event)
 
     def run(action_index) -> bool:
-        task = loop.create_task(a[action_index](event))
-        task.add_done_callback(s[action_index])
-        loop.run_until_complete(task)
+        def wrap(fun, ev, done):
+            fut = pool.submit(fun, ev)
+            fut.add_done_callback(done)
+
+        q.put(partial(wrap, a[action_index], event, d[action_index]))
+
+        if local_execution:
+            response = q.get()()
+
         return True
 
     while True:
