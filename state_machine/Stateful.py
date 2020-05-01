@@ -18,7 +18,6 @@ Transitions = NewType('Transitions', List[Transition])
 
 
 def stateful_generator(initial: int, ts: Transitions, executor: Executor = None, q: Queue = None):
-    #loop: AbstractEventLoop = asyncio.get_event_loop()
     pool = executor or ThreadPoolExecutor(max_workers=3)
 
     next_state = initial
@@ -34,17 +33,25 @@ def stateful_generator(initial: int, ts: Transitions, executor: Executor = None,
 
     def run(action_index) -> bool:
         def wrap(fun, ev, done):
-            fut = pool.submit(fun, ev)
-            fut.add_done_callback(done)
+            action_future = pool.submit(fun, ev)
+            action_future.add_done_callback(done)
+            return action_future
 
         q.put(partial(wrap, a[action_index], event, d[action_index]))
 
         if local_execution:
-            response = q.get()()
+            result_partial: Future = q.get()
+            future: Future = result_partial()
+            future.result()  # Done cb called
+            q.task_done()
 
         return True
 
-    while True:
-        event: Event = yield next_state
-        ss = [t[i] for i in range(len(f)) if f[i] == next_state and test(c[i]) and run(i)]
-        next_state = ss and ss[0] or next_state
+    try:
+        while True:
+            event: Event = yield next_state
+            ss = [t[i] for i in range(len(f)) if f[i] == next_state and test(c[i]) and run(i)]
+            next_state = ss and ss[0] or next_state
+    finally:
+        if local_execution:
+            q.join()

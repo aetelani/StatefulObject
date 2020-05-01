@@ -38,7 +38,10 @@ class TestTransitions(TestCase):
         ev: Event = ('ev1', ('arg1', 'arg2'))
         print(r := g.send(ev))
         print(r := g.send(('ev2', ('arg1', 'arg2'))))
-        print(r := g.send(('ev3', ('arg1', 'arg2'))))
+        print(r := g.close(), 'Clsoing')
+        #g.close()
+        #print(r := g.send(('ev3', ('arg1', 'arg2'))))
+
         import numpy as np
         print(np.array(conditions))
         print(np.array(ts))
