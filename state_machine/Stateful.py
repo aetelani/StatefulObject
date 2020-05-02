@@ -17,7 +17,7 @@ Transition = Tuple[from_state, to_state, Condition, Action, ActionDone]
 Transitions = NewType('Transitions', List[Transition])
 
 
-def stateful_generator(initial: int, ts: Transitions, executor: Executor = None, q: Queue = None):
+def stateful_generator(initial: int, ts: Transitions, executor: Executor = None, q: Queue = None, local_exec_wait_result = True):
     pool = executor or ThreadPoolExecutor(max_workers=3)
 
     next_state = initial
@@ -42,8 +42,9 @@ def stateful_generator(initial: int, ts: Transitions, executor: Executor = None,
         if local_execution:
             result_partial: Future = q.get()
             future: Future = result_partial()
-            future.result()  # Done cb called
-            q.task_done()
+            if local_exec_wait_result:
+                future.result()  # Done cb called
+                q.task_done()
 
         return True
 
