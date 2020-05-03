@@ -21,10 +21,10 @@ def exec_next_action(q: Queue):
 
 
 def stateful_generator(initial: int, ts: Transitions, executor: Executor = None, q: Queue = None,
-                       exec_wait_result=True):
+                       exec_wait_result=True, parallel_states=True):
     pool = executor or ThreadPoolExecutor()
 
-    next_state = (initial,)
+    next_state = {initial}
 
     (f, t, c, pa, d) = zip(*ts)
     p, a = zip(*pa)
@@ -70,8 +70,13 @@ def stateful_generator(initial: int, ts: Transitions, executor: Executor = None,
     try:
         while True:
             event: Event = yield next_state
+
             ss = [t[i] for i in range(len(f)) if f[i] in next_state and test(c[i]) and run(i)]
-            next_state = set(ss) or next_state
+
+            if parallel_states:
+                next_state = set(ss) or next_state
+            else:
+                next_state = ss and ss[0] or next_state
     finally:
         if exec_wait_result:
             q.join()

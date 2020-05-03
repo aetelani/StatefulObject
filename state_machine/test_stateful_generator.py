@@ -20,14 +20,14 @@ class TestTransitions(TestCase):
         g: stateful_generator = stateful_generator(initial_state, ts, q=lq, exec_wait_result=True)
         print('State', r := next(g))  # atm goes to the first state triggered, that is to self
         ev: Event = ('ev1', ('arg1', 'arg2'))
-        print('State', r := g.send(ev))
+        print('State', r := g.send(ev))  # default template spans loop of states triggering all transitions and states
         print('State', r := g.send(('ev1', ('arg1', 'arg2'))))
         print(it := exec_next_action(lq))  # even going to self runs all the transition actions
-        print(it := exec_next_action(lq))  # check the done3->3 messages
         print(it := exec_next_action(lq))
         print(it := exec_next_action(lq))
         print(it := exec_next_action(lq))
         print(it := exec_next_action(lq))
+        print(it := exec_next_action(lq))  # move to separate event loop to handle all actions
         print(r := g.close(), 'closing')
         import numpy as np
         print(np.array(ts))
