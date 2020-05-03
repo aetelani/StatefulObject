@@ -37,5 +37,4 @@ class TestTransitions(TestCase):
         print(r := g.close(), 'closing')
 
         import numpy as np
-        print(np.array([i for i in transitions]))
         print(np.array(ts))
