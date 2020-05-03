@@ -1,9 +1,8 @@
 from concurrent.futures._base import Executor, Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from functools import partial
-from itertools import combinations, chain
 from queue import Queue, PriorityQueue
-from typing import Callable, Any, Tuple, List, NewType, Optional, Sized
+from typing import Callable, Any, Tuple, List, NewType, Optional
 
 Condition = Callable[[Any], bool]
 prio = int
@@ -17,23 +16,7 @@ Transition = Tuple[from_state, to_state, Condition, Action, ActionDoneCb]
 Transitions = NewType('Transitions', List[Transition])
 
 
-def generate_transitions_template(states: Sized):
-    def action_tmpl(p):
-        print('action running', p)
-
-    # If priority not set, using default priority := number of transitions. Lower is higher priority.
-    # In case of even priority, first scheduled actions are executed first
-    def pact(priority=None, action=action_tmpl):
-        return priority, action  # Action running order pact
-
-    action_range = range(1, len(states) + 1)
-    transitions = [(f, t, lambda v: 'ev1' in v, pact(), lambda v: print(f'done{f}->{t}', v))
-                   for f, t in sorted(set(combinations(chain(action_range, reversed(action_range)), 2)))]
-    return transitions
-
-
 def exec_next_action(q: Queue):
-    print('unfinished_tasks', q.unfinished_tasks)
     return q.get()[2]()
 
 
@@ -41,7 +24,7 @@ def stateful_generator(initial: int, ts: Transitions, executor: Executor = None,
                        exec_wait_result=True):
     pool = executor or ThreadPoolExecutor()
 
-    next_state = initial
+    next_state = (initial,)
 
     (f, t, c, pa, d) = zip(*ts)
     p, a = zip(*pa)
@@ -87,9 +70,8 @@ def stateful_generator(initial: int, ts: Transitions, executor: Executor = None,
     try:
         while True:
             event: Event = yield next_state
-            ss = [t[i] for i in range(len(f)) if f[i] == next_state and test(c[i]) and run(i)]
-            next_state = ss and ss[0] or next_state
+            ss = [t[i] for i in range(len(f)) if f[i] in next_state and test(c[i]) and run(i)]
+            next_state = set(ss) or next_state
     finally:
         if exec_wait_result:
-            print('unfinished_tasks start wating', q.unfinished_tasks)
             q.join()
