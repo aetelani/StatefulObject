@@ -1,48 +1,63 @@
 import asyncio
+import itertools
 from asyncio import AbstractEventLoop
 from concurrent.futures._base import Future
 from contextvars import ContextVar
 from enum import Enum, auto
+from itertools import combinations, chain
+from queue import PriorityQueue
 from unittest import TestCase
 
-from state_machine.Stateful import Transition, Transitions, stateful_generator, Event
+from state_machine.Stateful import Transition, Transitions, stateful_generator, Event, exec_next_action, \
+    generate_transitions_template
 
 
 class TestStates(Enum):
-    Running = auto()
     Stopped = auto()
-
-
-conditions = [[lambda v: False] * len(TestStates)] * len(TestStates)
+    Running = auto()
+    Jumping = auto()
 
 
 # Awaitable alias to https://docs.python.org/3/library/typing.html#typing.Generator
 
-TEST = ContextVar('TEST', default=0)
-
-def action(p):
-    TEST.set(1)
+def action_tmpl(p):
     print('action running', p)
-    return str(TEST.get()) + ' ContextVar'
+
+
+# If priority not set, using default priority := number of transitions. Lower is higher priority.
+# In case of even priority, first scheduled actions are executed first
+def pact(priority=None, action=action_tmpl):
+    return priority, action  # Action running order pact
+
+
+action_range = range(1, len(TestStates) + 1)
+transitions = [(f, t, lambda v: 'ev1' in v, pact(), lambda v: print(f'done{f}->{t}', v))
+               for f, t in sorted(set(combinations(chain(action_range, reversed(action_range)), 2)))]
+print(*transitions)
+
 
 class TestTransitions(TestCase):
     def test_init(self):
-        t1: Transition = (0, 1, lambda v: 'ev1' in v, action, lambda v: print('done1', v))
-        t2, t3 = (1, 2, lambda v: True, action, lambda v: print('done2', v)), \
-                 (2, 3, lambda v: True, action, lambda v: print('done3', v))
+        t1: Transition = (0, 1, lambda v: 'ev1' in v, pact, lambda v: print('done1', v))
+        t2, t3 = (1, 2, lambda v: True, pact, lambda v: print('done2', v)), \
+                 (2, 3, lambda v: True, pact, lambda v: print('done3', v))
 
-        ts = Transitions([t1, t2, t3])
-        g = stateful_generator(0, ts)
+        # ts = Transitions([t1, t2, t3])
+        ts = Transitions(generate_transitions_template(TestStates))
+        lq = PriorityQueue()
+        g: stateful_generator = stateful_generator(TestStates.Stopped.value, ts, q=lq, exec_wait_result=True)
         print(r := next(g))
-        print('test', TEST.get())
         ev: Event = ('ev1', ('arg1', 'arg2'))
         print(r := g.send(ev))
-        print(r := g.send(('ev2', ('arg1', 'arg2'))))
+        print(r := g.send(('ev1', ('arg1', 'arg2'))))
+        print(it := exec_next_action(lq))
+        print(it := exec_next_action(lq))
+        print(it := exec_next_action(lq))
+        print(it := exec_next_action(lq))
+        print(it := exec_next_action(lq))
+        print(it := exec_next_action(lq))
         print(r := g.close(), 'closing')
-        #g.close()
-        #print(r := g.send(('ev3', ('arg1', 'arg2'))))
 
         import numpy as np
-        print(np.array(conditions))
+        print(np.array([i for i in transitions]))
         print(np.array(ts))
-        print('test', TEST.get())
