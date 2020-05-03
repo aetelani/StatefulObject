@@ -27,9 +27,9 @@ def action(p):
 
 class TestTransitions(TestCase):
     def test_init(self):
-        t1: Transition = (0, 1, lambda v: 'ev1' in v, action, lambda v: v.result())
-        t2, t3 = (1, 2, lambda v: True, action, lambda v: print('done', v)), \
-                 (2, 3, lambda v: True, action, lambda v: print('done', v))
+        t1: Transition = (0, 1, lambda v: 'ev1' in v, action, lambda v: print('done1', v))
+        t2, t3 = (1, 2, lambda v: True, action, lambda v: print('done2', v)), \
+                 (2, 3, lambda v: True, action, lambda v: print('done3', v))
 
         ts = Transitions([t1, t2, t3])
         g = stateful_generator(0, ts)
@@ -38,7 +38,7 @@ class TestTransitions(TestCase):
         ev: Event = ('ev1', ('arg1', 'arg2'))
         print(r := g.send(ev))
         print(r := g.send(('ev2', ('arg1', 'arg2'))))
-        print(r := g.close(), 'Clsoing')
+        print(r := g.close(), 'closing')
         #g.close()
         #print(r := g.send(('ev3', ('arg1', 'arg2'))))
 

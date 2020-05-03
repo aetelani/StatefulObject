@@ -17,7 +17,7 @@ Transition = Tuple[from_state, to_state, Condition, Action, ActionDone]
 Transitions = NewType('Transitions', List[Transition])
 
 
-def stateful_generator(initial: int, ts: Transitions, executor: Executor = None, q: Queue = None, local_exec_wait_result = True):
+def stateful_generator(initial: int, ts: Transitions, executor: Executor = None, q: Queue = None, exec_wait_result = True):
     pool = executor or ThreadPoolExecutor(max_workers=3)
 
     next_state = initial
@@ -32,19 +32,22 @@ def stateful_generator(initial: int, ts: Transitions, executor: Executor = None,
         return tester(event)
 
     def run(action_index) -> bool:
-        def wrap(fun, ev, done):
+        def wrap(fun, ev, done, queue: Queue):
+            def done_wrap(done_future: Future):
+                print('done_wrap')
+                queue.task_done()
+                done(done_future)
+
             action_future = pool.submit(fun, ev)
-            action_future.add_done_callback(done)
+            action_future.add_done_callback(done_wrap)
             return action_future
 
-        q.put(partial(wrap, a[action_index], event, d[action_index]))
+        q.put(partial(wrap, a[action_index], event, d[action_index], q))
 
         if local_execution:
             result_partial: Future = q.get()
             future: Future = result_partial()
-            if local_exec_wait_result:
-                future.result()  # Done cb called
-                q.task_done()
+            future.result()  # Done cb called
 
         return True
 
@@ -54,5 +57,5 @@ def stateful_generator(initial: int, ts: Transitions, executor: Executor = None,
             ss = [t[i] for i in range(len(f)) if f[i] == next_state and test(c[i]) and run(i)]
             next_state = ss and ss[0] or next_state
     finally:
-        if local_execution:
+        if exec_wait_result:
             q.join()
